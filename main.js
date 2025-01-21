@@ -1,6 +1,7 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { Client } = require('@googlemaps/google-maps-services-js');
+require('dotenv').config();
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -17,13 +18,13 @@ function createWindow() {
     if (channel === 'search-places') {
       try {
         const client = new Client({
-          key: 'API_KEY_ENV_VAR_HERE'
+          key: process.env.GOOGLE_MAPS_API_KEY
         });
 
         // Geocode the postcode
         const geocodeResponse = await client.geocode({
             params: {
-                key: 'API_KEY_ENV_VAR_HERE',
+                key: process.env.GOOGLE_MAPS_API_KEY,
                 address: postcode,
             }
         }).then(response => response.data); 
@@ -41,7 +42,7 @@ function createWindow() {
         // Places API request
         const nearbyResponse = await client.placesNearby({
             params: {
-                key: 'API_KEY_ENV_VAR_HERE',
+                key: process.env.GOOGLE_MAPS_API_KEY,
                 location: {
                     lat: lat,
                     lng: lng
@@ -56,22 +57,29 @@ function createWindow() {
             return;
         }
 
-        // TODO
-        // - GIT
-        // - Update all instances of the word pub to place
-        // - Fetch place data from the place IDs from the previous response
-        //   and display on the front end
-        // - Fetch all place types and display to select them,
-        //   update the search term from type to actual search for refinement
-        // - Styling
-        // - Export feature
+        let places = [];
+        for ( let i = 0; i < nearbyResponse.results.length; i++ ) {
+            const placeResponse = await client.placeDetails({
+                params: {
+                    key: process.env.GOOGLE_MAPS_API_KEY,
+                    place_id: nearbyResponse.results[i].place_id,
+                    fields: ['name', 'formatted_phone_number', 'website', 'formatted_address', 'type']
+                }
+            });
 
-        // Stretch goals
-        // - Use a LLM to generate an email based on a prompt from the user,
-        //   utilizing all hydrated data from the API to personalize it
-        // - Email service for complete automation (create a blacklist once sent so you only ever email a company once)
+            places.push({
+                'name': placeResponse.data.result.name,
+                'phone_number': placeResponse.data.result.formatted_phone_number,
+                'website': placeResponse.data.result.website,
+                'address': placeResponse.data.result.formatted_address,
+                'types': placeResponse.data.result.types.join(', '),
+            });
 
-        event.reply('nearby-places-reply', nearbyResponse.results);
+            let a = 1;
+        }
+
+        // OLD
+        event.reply('nearby-places-reply', places);
 
       } catch (error) {
         console.error('Error:', error);
@@ -99,3 +107,18 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+
+// TODO
+// - GIT
+// - Update all instances of the word pub to place
+// - Fetch place data from the place IDs from the previous response
+//   and display on the front end
+// - Fetch all place types and display to select them,
+//   update the search term from type to actual search for refinement
+// - Styling
+// - Export feature
+
+// Stretch goals
+// - Use a LLM to generate an email based on a prompt from the user,
+//   utilizing all hydrated data from the API to personalize it
+// - Email service for complete automation (create a blacklist once sent so you only ever email a company once)

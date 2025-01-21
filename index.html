@@ -36,8 +36,10 @@
             const listItem = document.createElement('li');
             listItem.innerHTML = `
               <b>${pub.name}</b><br>
+              ${pub.phone_number}<br>
+              ${pub.website}<br>
               ${pub.address}<br>
-              Rating: ${pub.rating ? pub.rating : 'Not available'}<br>
+              ${pub.types}<br>
             `;
             resultsList.appendChild(listItem);
           });
