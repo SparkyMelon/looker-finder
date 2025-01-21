@@ -1,0 +1,38 @@
+{
+  "name": "the_looker_finder",
+  "version": "1.0.0",
+  "description": "Find local establishments",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "linux": {
+      "target": [
+        "deb",
+        "rpm"
+      ]
+    }
+  },
+  "author": "James Quinton",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "@googlemaps/google-maps-services-js": "^3.4.0",
+    "googleapis": "^144.0.0"
+  }
+}

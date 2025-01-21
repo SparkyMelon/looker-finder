@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>The Looker Finder</title>
+</head>
+<body>
+  <h1>The Looker Finder</h1>
+  <label for="postcode">Postcode:</label>
+  <input type="text" id="postcode" placeholder="Enter postcode">
+  <br>
+  <label for="radius">Radius (miles):</label>
+  <input type="number" id="radius" min="0" value="1">
+  <br>
+  <label for="searchTerm">Search Term (optional):</label>
+  <input type="text" id="searchTerm" placeholder="e.g., live music">
+  <br>
+  <button onclick="searchPubs()">Search</button>
+  <ul id="resultsList"></ul>
+
+  <script>
+    async function searchPubs() {
+      const postcode = document.getElementById('postcode').value;
+      const radiusMiles = parseFloat(document.getElementById('radius').value);
+      const searchTerms = document.getElementById('searchTerm').value;
+
+      try {
+        const pubs = await window.api.searchPubs(postcode, radiusMiles, searchTerms);
+
+        const resultsList = document.getElementById('resultsList');
+        resultsList.innerHTML = '';
+
+        if (pubs.length === 0) {
+          resultsList.innerHTML = '<li>No pubs found.</li>';
+        } else {
+          pubs.forEach(pub => {
+            const listItem = document.createElement('li');
+            listItem.innerHTML = `
+              <b>${pub.name}</b><br>
+              ${pub.address}<br>
+              Rating: ${pub.rating ? pub.rating : 'Not available'}<br>
+            `;
+            resultsList.appendChild(listItem);
+          });
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        resultsList.innerHTML = '<li>Error fetching pubs.</li>';
+      }
+    }
+  </script>
+</body>
+</html>
