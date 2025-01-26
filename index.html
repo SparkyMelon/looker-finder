@@ -1,54 +1,89 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>The Looker Finder</title>
 </head>
+
 <body>
   <h1>The Looker Finder</h1>
   <label for="postcode">Postcode:</label>
   <input type="text" id="postcode" placeholder="Enter postcode">
   <br>
   <label for="radius">Radius (miles):</label>
-  <input type="number" id="radius" min="0" value="1">
+  <input type="number" id="radius" min="0" max="10" value="1">
   <br>
   <label for="searchTerm">Search Term (optional):</label>
   <input type="text" id="searchTerm" placeholder="e.g., live music">
   <br>
-  <button onclick="searchPubs()">Search</button>
+  <div id="placeTypes"></div>
+  <button onclick="searchPlaces()">Search</button>
   <ul id="resultsList"></ul>
 
   <script>
-    async function searchPubs() {
+    async function fetchTypes() {
+      try {
+        const types = await window.api.fetchTypes();
+        console.log(types);
+        const placeTypes = document.getElementById('placeTypes');
+        placeTypes.innerHTML = '';
+
+        types.forEach(type => {
+          const typeItemInput = document.createElement('input');
+          typeItemInput.type = 'checkbox';
+          typeItemInput.id = type;
+          typeItemInput.name = type;
+          typeItemInput.value = type;
+          placeTypes.appendChild(typeItemInput);
+
+          const typeItemLabel = document.createElement('label');
+          typeItemLabel.htmlFor = type;
+          typeItemLabel.innerText = type;
+          placeTypes.appendChild(typeItemLabel);
+
+          const typeItemSpacer = document.createElement('br');
+          placeTypes.appendChild(typeItemSpacer);
+        });
+      } catch (error) {
+        console.error('Error:', error);
+        // TODO - Create place to display generic errors
+      }
+    }
+
+    fetchTypes();
+
+    async function searchPlaces() {
       const postcode = document.getElementById('postcode').value;
       const radiusMiles = parseFloat(document.getElementById('radius').value);
       const searchTerms = document.getElementById('searchTerm').value;
 
       try {
-        const pubs = await window.api.searchPubs(postcode, radiusMiles, searchTerms);
+        const places = await window.api.searchPlaces(postcode, radiusMiles, searchTerms);
 
         const resultsList = document.getElementById('resultsList');
         resultsList.innerHTML = '';
 
-        if (pubs.length === 0) {
-          resultsList.innerHTML = '<li>No pubs found.</li>';
+        if (places.length === 0) {
+          resultsList.innerHTML = '<li>No places found.</li>';
         } else {
-          pubs.forEach(pub => {
+          places.forEach(place => {
             const listItem = document.createElement('li');
             listItem.innerHTML = `
-              <b>${pub.name}</b><br>
-              ${pub.phone_number}<br>
-              ${pub.website}<br>
-              ${pub.address}<br>
-              ${pub.types}<br>
+              <b>${place.name}</b><br>
+              ${place.phone_number}<br>
+              ${place.website}<br>
+              ${place.address}<br>
+              ${place.types}<br>
             `;
             resultsList.appendChild(listItem);
           });
         }
       } catch (error) {
         console.error('Error:', error);
-        resultsList.innerHTML = '<li>Error fetching pubs.</li>';
+        resultsList.innerHTML = '<li>Error fetching places.</li>';
       }
     }
   </script>
 </body>
+
 </html>

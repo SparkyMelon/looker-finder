@@ -1,6 +1,6 @@
-const { app, BrowserWindow } = require('electron');
+const {app, BrowserWindow} = require('electron');
 const path = require('path');
-const { Client } = require('@googlemaps/google-maps-services-js');
+const {Client, PlaceType1, PlaceType2} = require('@googlemaps/google-maps-services-js');
 require('dotenv').config();
 
 function createWindow() {
@@ -14,78 +14,89 @@ function createWindow() {
 
   win.webContents.openDevTools();
 
-  win.webContents.on('ipc-message', async (event, channel, postcode, radiusMiles, searchTerms) => {
-    if (channel === 'search-places') {
-      try {
-        const client = new Client({
-          key: process.env.GOOGLE_MAPS_API_KEY
-        });
+  win.webContents.on('ipc-message', async (event, message, ...args) => {
+    switch (message) {
+      case 'fetch-types':
+        let types = Object.values(PlaceType1);
+        types = types.concat(Object.values(PlaceType2));
+  
+        event.reply('fetch-types-reply', types);
+        break;
+      case 'search-places':
+        const [postcode, radiusMiles, searchTerms] = args; 
 
-        // Geocode the postcode
-        const geocodeResponse = await client.geocode({
+        try {
+          const client = new Client({
+            key: process.env.GOOGLE_MAPS_API_KEY
+          });
+  
+          // Geocode the postcode
+          const geocodeResponse = await client.geocode({
             params: {
-                key: process.env.GOOGLE_MAPS_API_KEY,
-                address: postcode,
+              key: process.env.GOOGLE_MAPS_API_KEY,
+              address: postcode,
             }
-        }).then(response => response.data); 
-
-        if (!geocodeResponse.results || !geocodeResponse.results[0].geometry.location) {
-          event.reply('search-places-error', `Unable to geocode postcode: ${postcode}`);
-          return;
-        }
-
-        const { lat, lng } = geocodeResponse.results[0].geometry.location;
-
-        // Convert miles to meters
-        const radiusMeters = radiusMiles * 1609.34;
-
-        // Places API request
-        const nearbyResponse = await client.placesNearby({
+          }).then(response => response.data);
+  
+          if (!geocodeResponse.results || !geocodeResponse.results[0].geometry.location) {
+            event.reply('search-places-error', `Unable to geocode postcode: ${postcode}`);
+            return;
+          }
+  
+          const {
+            lat,
+            lng
+          } = geocodeResponse.results[0].geometry.location;
+  
+          // Convert miles to meters
+          const radiusMeters = radiusMiles * 1609.34;
+  
+          // Places API request
+          const nearbyResponse = await client.placesNearby({
             params: {
-                key: process.env.GOOGLE_MAPS_API_KEY,
-                location: {
-                    lat: lat,
-                    lng: lng
-                },
-                radius: radiusMeters,
-                type: searchTerms,
+              key: process.env.GOOGLE_MAPS_API_KEY,
+              location: {
+                lat: lat,
+                lng: lng
+              },
+              radius: radiusMeters,
+              type: searchTerms,
             }
-        }).then(response => response.data);
-
-        if (!nearbyResponse.results) {
+          }).then(response => response.data);
+  
+          if (!nearbyResponse.results) {
             event.reply('search-places-error', 'Unable to find nearby places');
             return;
-        }
-
-        let places = [];
-        for ( let i = 0; i < nearbyResponse.results.length; i++ ) {
+          }
+  
+          let places = [];
+          for (let i = 0; i < nearbyResponse.results.length; i++) {
             const placeResponse = await client.placeDetails({
-                params: {
-                    key: process.env.GOOGLE_MAPS_API_KEY,
-                    place_id: nearbyResponse.results[i].place_id,
-                    fields: ['name', 'formatted_phone_number', 'website', 'formatted_address', 'type']
-                }
+              params: {
+                key: process.env.GOOGLE_MAPS_API_KEY,
+                place_id: nearbyResponse.results[i].place_id,
+                fields: ['name', 'formatted_phone_number', 'website', 'formatted_address', 'type']
+              }
             });
-
+  
             places.push({
-                'name': placeResponse.data.result.name,
-                'phone_number': placeResponse.data.result.formatted_phone_number,
-                'website': placeResponse.data.result.website,
-                'address': placeResponse.data.result.formatted_address,
-                'types': placeResponse.data.result.types.join(', '),
+              'name': placeResponse.data.result.name,
+              'phone_number': placeResponse.data.result.formatted_phone_number,
+              'website': placeResponse.data.result.website,
+              'address': placeResponse.data.result.formatted_address,
+              'types': placeResponse.data.result.types.join(', '),
             });
-
-            let a = 1;
+          }
+  
+          // OLD
+          event.reply('nearby-places-reply', places);
+  
+        } catch (error) {
+          console.error('Error:', error);
+          console.error(error.response.data.error_message);
+          event.reply('search-places-error', 'An unexpected error occurred.');
         }
-
-        // OLD
-        event.reply('nearby-places-reply', places);
-
-      } catch (error) {
-        console.error('Error:', error);
-        console.error(error.response.data.error_message);
-        event.reply('search-places-error', 'An unexpected error occurred.');
-      }
+        break;
     }
   });
 
@@ -109,8 +120,6 @@ app.on('window-all-closed', () => {
 });
 
 // TODO
-// - GIT
-// - Update all instances of the word pub to place
 // - Fetch place data from the place IDs from the previous response
 //   and display on the front end
 // - Fetch all place types and display to select them,
